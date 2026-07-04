@@ -1359,26 +1359,18 @@ function handleLogin(){
           clientDb.ref('members/'+found._fbId).on('value',function(snap){
             if(!snap.exists()||!currentMember) return;
             const d=snap.val();
-            // Update messages
-            if(d.messages!==undefined) currentMember.messages=d.messages;
-            // Use same rotation logic as trainer app to get correct day
+            // Recompute day/phase using trainer rotation logic
             const {day:newDay,phase:newPhaseStr}=_getCurrentDayPhase(d);
             const newPhase=parseInt((newPhaseStr||'1').replace(/\D/g,''))||1;
-            currentMember.day=newDay; currentMember.phase=newPhase;
-            // Update other trainer-set fields
+            // Update all trainer-controlled fields on currentMember
+            currentMember.day=newDay;
+            currentMember.phase=newPhase;
+            if(d.messages!==undefined) currentMember.messages=d.messages;
             ['cardioDebt','homework','nutrition','onlineSession','customPlan','customPlanDay','customPhase','calisthenics'].forEach(k=>{
               if(d[k]!==undefined) currentMember[k]=d[k];
             });
-            // Refresh UI
-            updateMsgPreview();
-            const heroDay=document.getElementById('heroDay');
-            const heroSub=document.getElementById('heroSub');
-            const memberRole=document.getElementById('memberRole');
-            const mpTitle=document.getElementById('mpTitle');
-            if(heroDay) heroDay.textContent=newDay.toUpperCase()+' DAY';
-            if(heroSub) heroSub.textContent=`Phase ${newPhase} · ${newDay} Program`;
-            if(memberRole) memberRole.textContent=`GIFT Member · Phase ${newPhase}`;
-            if(mpTitle) mpTitle.textContent=`Phase ${newPhase} — ${newDay}`;
+            // Re-run the exact same render path as login so nothing is missed
+            populateDash(currentMember);
           });
         }
       }
