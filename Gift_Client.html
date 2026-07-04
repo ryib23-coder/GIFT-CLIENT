@@ -1707,7 +1707,7 @@ function initWorkout(day,phase){
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function renderWorkout(pd){
   const c=document.getElementById('workoutContent');c.innerHTML='';
-  if(pd&&pd.note){const n=document.createElement('div');n.className='note-card';n.innerHTML=`<strong>📋 Coach Note:</strong> ${esc(pd.note)}`;c.appendChild(n);}
+  // Coach notes are trainer-only — not shown to clients
   const hdr=document.createElement('div');hdr.className='sec-hdr';
   hdr.innerHTML=`<span class="sec-hdr-label">EXERCISES</span><span class="sec-hdr-count" id="doneCount">0 / ${exercises.length} done</span>`;
   c.appendChild(hdr);
