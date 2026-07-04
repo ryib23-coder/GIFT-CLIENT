@@ -1805,11 +1805,11 @@ function copyLastSet(exId){
   if(!last)return;
   let t=sets.find(s=>s.reps===''&&s.weight==='');
   if(!t){setsData[exId].push({reps:'',weight:''});t=setsData[exId][setsData[exId].length-1];}
-  t.weight=last.weight;t.reps=last.reps;refreshExCard(exId);updateTotals();
+  t.weight=last.weight;t.reps=last.reps;refreshExCard(exId);updateTotals();_saveWkProgress();
 }
 function toggleEx(id){} // no-op — cards always expanded
-function addSet(exId){setsData[exId].push({reps:'',weight:'',checked:false});refreshExCard(exId);updateTotals();}
-function deleteSet(exId,idx){if(setsData[exId].length<=1)return;setsData[exId].splice(idx,1);refreshExCard(exId);updateTotals();}
+function addSet(exId){setsData[exId].push({reps:'',weight:'',checked:false});refreshExCard(exId);updateTotals();_saveWkProgress();}
+function deleteSet(exId,idx){if(setsData[exId].length<=1)return;setsData[exId].splice(idx,1);refreshExCard(exId);updateTotals();_saveWkProgress();}
 
 let workoutStartTime=null,workoutTimerInterval=null;
 function startWorkoutTimer(){
