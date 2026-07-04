@@ -1281,6 +1281,31 @@ function saveSubs(s){try{localStorage.setItem(subKey(),JSON.stringify(s));}catch
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 
 // ══ LOGIN ══
+// Mirror the trainer app's rotation logic so day/phase stay in sync after check-ins
+function _rDay(r){ return typeof r==='object'?(r.day||''):r; }
+function _rPhase(r){ return typeof r==='object'?(r.phase||''):''; }
+function _todayStr(){
+  const now=new Date();
+  return new Date(now.getTime()-5*60*60*1000).toISOString().slice(0,10);
+}
+function _getCurrentDayPhase(d){
+  const rot=d.rotation||[];
+  if(!rot.length) return {day:d.day||'',phase:d.phase||'1'};
+  const cl=d.checkins||[];
+  if(!cl.length) return {day:_rDay(rot[0]),phase:_rPhase(rot[0])};
+  const last=cl[cl.length-1];
+  if(last.date===_todayStr()){
+    // Checked in today — show today's workout day
+    let ti=last.rotIdx!=null?last.rotIdx:rot.findIndex(r=>_rDay(r)===last.day);
+    if(ti<0)ti=0;
+    return {day:_rDay(rot[ti]),phase:_rPhase(rot[ti])};
+  }
+  // Not checked in today — show the NEXT day in rotation
+  const li=last.rotIdx!=null?last.rotIdx:0;
+  const ni=(li+1)%rot.length;
+  return {day:_rDay(rot[ni]),phase:_rPhase(rot[ni])};
+}
+
 function handleLogin(){
   const first=document.getElementById('firstName').value.trim();
   const last=document.getElementById('lastName').value.trim();
@@ -1293,10 +1318,8 @@ function handleLogin(){
   const fullName=(first+' '+last).toLowerCase();
 
   function buildFromFb(d,key){
-    const rot=d.rotation||[];
-    const firstRot=rot[0]||{};
-    const day=d.nextDayOverride||firstRot.day||d.day||'';
-    const phase=parseInt((firstRot.phase||d.phase||'1').toString().replace(/\D/g,''))||1;
+    const {day,phase:phaseStr}=_getCurrentDayPhase(d);
+    const phase=parseInt((phaseStr||d.phase||'1').toString().replace(/\D/g,''))||1;
     const m={first,last,code,phase,day,_fbId:d.id||key,
       nutrition:d.nutrition||{calories:2000,protein:150,carbs:200,fat:65,water:96}};
     ['onlineSession','cardioDebt','homework','messages','calisthenics',
@@ -1338,10 +1361,9 @@ function handleLogin(){
             const d=snap.val();
             // Update messages
             if(d.messages!==undefined) currentMember.messages=d.messages;
-            // Update day/phase from rotation
-            const rot=d.rotation||[];const firstRot=rot[0]||{};
-            const newDay=d.nextDayOverride||firstRot.day||d.day||currentMember.day;
-            const newPhase=parseInt((firstRot.phase||d.phase||'1').toString().replace(/\D/g,''))||1;
+            // Use same rotation logic as trainer app to get correct day
+            const {day:newDay,phase:newPhaseStr}=_getCurrentDayPhase(d);
+            const newPhase=parseInt((newPhaseStr||'1').replace(/\D/g,''))||1;
             currentMember.day=newDay; currentMember.phase=newPhase;
             // Update other trainer-set fields
             ['cardioDebt','homework','nutrition','onlineSession','customPlan','customPlanDay','customPhase','calisthenics'].forEach(k=>{
