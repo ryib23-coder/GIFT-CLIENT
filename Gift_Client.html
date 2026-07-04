@@ -1353,25 +1353,34 @@ function handleLogin(){
           }).catch(()=>{});
         }
         loginWith(found);
-        // Real-time listener — keeps member data, messages, day/phase in sync
-        // without needing to sign out and back in
+        // Real-time listener + polling fallback for messages/day sync
         if(clientDb&&found._fbId){
-          clientDb.ref('members/'+found._fbId).on('value',function(snap){
-            if(!snap.exists()||!currentMember) return;
-            const d=snap.val();
-            // Recompute day/phase using trainer rotation logic
+          const fbId=found._fbId;
+          function applyFbUpdate(d){
+            if(!d||!currentMember) return;
             const {day:newDay,phase:newPhaseStr}=_getCurrentDayPhase(d);
             const newPhase=parseInt((newPhaseStr||'1').replace(/\D/g,''))||1;
-            // Update all trainer-controlled fields on currentMember
             currentMember.day=newDay;
             currentMember.phase=newPhase;
             if(d.messages!==undefined) currentMember.messages=d.messages;
             ['cardioDebt','homework','nutrition','onlineSession','customPlan','customPlanDay','customPhase','calisthenics'].forEach(k=>{
               if(d[k]!==undefined) currentMember[k]=d[k];
             });
-            // Re-run the exact same render path as login so nothing is missed
             populateDash(currentMember);
+          }
+          // Real-time listener (primary)
+          clientDb.ref('members/'+fbId).on('value',function(snap){
+            if(!snap.exists()) return;
+            applyFbUpdate(snap.val());
           });
+          // Polling fallback every 15s in case listener misses an update
+          if(window._syncPollInterval) clearInterval(window._syncPollInterval);
+          window._syncPollInterval=setInterval(function(){
+            if(!currentMember||!clientDb) return;
+            clientDb.ref('members/'+fbId).once('value').then(function(snap){
+              if(snap.exists()) applyFbUpdate(snap.val());
+            }).catch(function(){});
+          },15000);
         }
       }
       else{err.textContent='Name or code not found. Check with your trainer.';err.classList.add('show');}
@@ -1388,6 +1397,8 @@ function handleLogin(){
 }
 function logout(){
   currentMember=null;
+  if(window._syncPollInterval){clearInterval(window._syncPollInterval);window._syncPollInterval=null;}
+  if(clientDb) try{clientDb.ref().off();}catch(e){}
   if(clientAuth) clientAuth.signOut().catch(()=>{});
   ['firstName','lastName','accessCode'].forEach(id=>document.getElementById(id).value='');
   show('loginScreen');
@@ -1445,7 +1456,7 @@ function populateDash(m){
   if(sEl)sEl.textContent='🔥 '+streak;
   updateMsgPreview();
 }
-function goToDash(){show('dashScreen');updateDashPhase();}
+function goToDash(){_clearRestTimer();_hideRestBanner();show('dashScreen');updateDashPhase();}
 function goToWorkout(){
   if(!currentMember) return;
   const tp=getTrainerPlan(currentMember);
@@ -1474,8 +1485,11 @@ function initCustomWorkout(planName,day,phaseNum){
     if(phaseData.groups) phaseData.groups.forEach(g=>g.exercises.forEach(ex=>exercises.push({...ex,id:'ex'+exercises.length,group:g.group})));
     else if(phaseData.exercises) phaseData.exercises.forEach(ex=>exercises.push({...ex,id:'ex'+exercises.length,group:null}));
   }
+  _wkKey=currentMember?('gf_wk_'+(currentMember.code||'x')+'_'+planName+'_'+day+'_'+(phaseNum||1)):null;
+  const savedC=_wkKey?_loadWkProgress(_wkKey):null;
   setsData={};
   exercises.forEach(ex=>{setsData[ex.id]=[{reps:'',weight:'',checked:false}];});
+  if(savedC){ Object.keys(savedC).forEach(k=>{if(setsData[k])setsData[k]=savedC[k];}); }
   const subs=loadSubs();
   exercises.forEach((ex,i)=>{const s=subs[i];if(s){ex.origName=ex.name;ex.origTarget=ex.target;ex.name=s.name;ex.isSubbed=true;ex.subNote=s.note||'';}});
   renderWorkout(phaseData);updateTotals();
@@ -1492,8 +1506,11 @@ function initTrainerPlanWorkout(cp){
   document.getElementById('wkPhaseTag').textContent=(cp.phase||'Custom')+' · '+(dayName||'');
   exercises=[];
   (dayData.exercises||[]).forEach(ex=>exercises.push({...ex,id:'ex'+exercises.length,group:null}));
+  _wkKey=currentMember?('gf_wk_'+(currentMember.code||'x')+'_tp_'+(dayName||'').replace(/\s/g,'_')):null;
+  const savedT=_wkKey?_loadWkProgress(_wkKey):null;
   setsData={};
   exercises.forEach(ex=>{setsData[ex.id]=[{reps:'',weight:'',checked:false}];});
+  if(savedT){ Object.keys(savedT).forEach(k=>{if(setsData[k])setsData[k]=savedT[k];}); }
   const subs=loadSubs();
   exercises.forEach((ex,i)=>{const s=subs[i];if(s){ex.origName=ex.name;ex.origTarget=ex.target;ex.name=s.name;ex.isSubbed=true;ex.subNote=s.note||'';}});
   renderWorkout({});updateTotals();
@@ -1696,9 +1713,11 @@ function initWorkout(day,phase){
     if(phaseData.groups) phaseData.groups.forEach(g=>g.exercises.forEach(ex=>exercises.push({...ex,id:'ex'+exercises.length,group:g.group})));
     else if(phaseData.exercises) phaseData.exercises.forEach(ex=>exercises.push({...ex,id:'ex'+exercises.length,group:null}));
   }
+  _wkKey=currentMember?('gf_wk_'+(currentMember.code||'x')+'_'+day+'_'+phase.replace(/\s/g,'')):null;
+  const saved=_wkKey?_loadWkProgress(_wkKey):null;
   setsData={};
   exercises.forEach(ex=>{setsData[ex.id]=[{reps:'',weight:'',checked:false}];});
-  // Apply saved substitutions
+  if(saved){ Object.keys(saved).forEach(k=>{if(setsData[k])setsData[k]=saved[k];}); }
   const subs=loadSubs();
   exercises.forEach((ex,i)=>{const s=subs[i];if(s){ex.origName=ex.name;ex.origTarget=ex.target;ex.name=s.name;ex.isSubbed=true;ex.subNote=s.note||'';}});
   renderWorkout(phaseData);updateTotals();
@@ -1763,12 +1782,18 @@ function renderSets(exId){
     // Checkmark button
     const chk=document.createElement('button');chk.className='check-btn'+(s.checked?' done':'');chk.textContent='✓';
     chk.addEventListener('click',()=>{
-      setsData[exId][i].checked=!setsData[exId][i].checked;
-      // Auto-add next empty set when checking off the last one
-      if(setsData[exId][i].checked&&i===setsData[exId].length-1){
-        setsData[exId].push({reps:'',weight:'',checked:false});
+      const wasChecked=setsData[exId][i].checked;
+      setsData[exId][i].checked=!wasChecked;
+      if(setsData[exId][i].checked){
+        startRestTimer(120);
+        if(i===setsData[exId].length-1){
+          setsData[exId].push({reps:'',weight:'',checked:false});
+        }
+      } else {
+        _clearRestTimer();_hideRestBanner();
       }
       refreshExCard(exId);updateTotals();
+      _saveWkProgress();
     });
     row.appendChild(num);row.appendChild(prevCell);row.appendChild(wBtn);row.appendChild(rBtn);row.appendChild(chk);
     c.appendChild(row);
@@ -1788,7 +1813,7 @@ function deleteSet(exId,idx){if(setsData[exId].length<=1)return;setsData[exId].s
 
 let workoutStartTime=null,workoutTimerInterval=null;
 function startWorkoutTimer(){
-  if(workoutTimerInterval) return; // already running
+  if(workoutTimerInterval) return;
   workoutStartTime=Date.now();
   workoutTimerInterval=setInterval(()=>{
     const e=Date.now()-workoutStartTime;
@@ -1802,6 +1827,66 @@ function stopWorkoutTimer(){
   workoutStartTime=null;
   const el=document.getElementById('wkElapsed');if(el) el.textContent='0:00';
 }
+
+// ── REST TIMER ─────────────────────────────────
+let _restInterval=null,_restLeft=0;
+function startRestTimer(sec){
+  _clearRestTimer();
+  _restLeft=sec||120;
+  _showRestBanner();
+  _restInterval=setInterval(()=>{
+    _restLeft--;
+    if(_restLeft<=0){
+      _clearRestTimer();
+      _playBeep();
+      if(navigator.vibrate) navigator.vibrate([300,100,300]);
+      const el=document.getElementById('restBannerTime');
+      if(el){el.textContent='GO!';el.style.color='#22c55e';}
+      setTimeout(_hideRestBanner,1800);
+    } else {
+      const el=document.getElementById('restBannerTime');
+      if(el){
+        const m=Math.floor(_restLeft/60),s=_restLeft%60;
+        el.textContent=m+':'+(s<10?'0':'')+s;
+        el.style.color=_restLeft<=10?'#ff5555':'#ff5c00';
+      }
+    }
+  },1000);
+}
+function _clearRestTimer(){ if(_restInterval){clearInterval(_restInterval);_restInterval=null;} }
+function _hideRestBanner(){ const b=document.getElementById('restBanner');if(b)b.remove(); }
+function _showRestBanner(){
+  _hideRestBanner();
+  const b=document.createElement('div');b.id='restBanner';
+  b.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:2px solid var(--orange);border-radius:18px;padding:14px 22px;z-index:9999;display:flex;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.7);white-space:nowrap;';
+  const m=Math.floor(_restLeft/60),s=_restLeft%60;
+  b.innerHTML='<span style="font-size:11px;color:#666;font-family:Space Mono,monospace;letter-spacing:2px;text-transform:uppercase;">Rest</span>'
+    +'<span id="restBannerTime" style="font-family:Bebas Neue,sans-serif;font-size:32px;color:#ff5c00;letter-spacing:2px;min-width:60px;text-align:center;">'+m+':'+(s<10?'0':'')+s+'</span>'
+    +'<button onclick="_clearRestTimer();_hideRestBanner()" style="background:none;border:1px solid #333;border-radius:8px;padding:5px 10px;color:#777;font-size:11px;cursor:pointer;font-family:Space Mono,monospace;letter-spacing:1px;">SKIP</button>';
+  document.body.appendChild(b);
+}
+function _playBeep(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [[880,0,0.15],[880,0.2,0.15],[1047,0.4,0.3]].forEach(([freq,start,dur])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=freq;o.type='sine';
+      g.gain.setValueAtTime(0.35,ctx.currentTime+start);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+start+dur);
+      o.start(ctx.currentTime+start);o.stop(ctx.currentTime+start+dur+0.05);
+    });
+  }catch(e){}
+}
+
+// ── WORKOUT PROGRESS SAVE/RESTORE ─────────────
+let _wkKey=null;
+function _saveWkProgress(){
+  if(!_wkKey||!Object.keys(setsData).length) return;
+  try{ localStorage.setItem(_wkKey,JSON.stringify(setsData)); }catch(e){}
+}
+function _loadWkProgress(key){ try{const d=localStorage.getItem(key);return d?JSON.parse(d):null;}catch(e){return null;} }
+function _clearWkProgress(){ if(_wkKey) try{localStorage.removeItem(_wkKey);}catch(e){} }
 function refreshExCard(exId){
   renderSets(exId);
   const vol=exVol(exId);
@@ -1847,7 +1932,7 @@ function confirmPicker(){
   const{exId,idx,field}=pickerState;
   const typed=document.getElementById('pickerTypeIn').value.trim();
   const fv=typed!==''?(parseFloat(typed)||0):pickerState.value;
-  if(fv!==null&&fv!==''){setsData[exId][idx][field]=fv;refreshExCard(exId);updateTotals();}
+  if(fv!==null&&fv!==''){setsData[exId][idx][field]=fv;refreshExCard(exId);updateTotals();_saveWkProgress();}
   closePicker();
 }
 document.getElementById('pickerOverlay').addEventListener('click',function(e){if(e.target===this)closePicker();});
@@ -1915,6 +2000,7 @@ function saveAndReturn(){
       }).catch(()=>{});
     }
   }
+  _clearWkProgress();
   document.getElementById('resultModal').classList.remove('open');show('dashScreen');
 }
 
