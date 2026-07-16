@@ -676,6 +676,9 @@
     <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
   </div>
   <div id="workoutContent"></div>
+  <div style="margin:8px 16px 0;">
+    <button onclick="openAddExerciseModal()" style="width:100%;background:rgba(255,92,0,0.06);border:1.5px dashed rgba(255,92,0,0.3);border-radius:12px;padding:12px;color:rgba(255,92,0,0.7);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;">+ Add Exercise</button>
+  </div>
   <div class="finish-wrap"><button class="finish-btn" onclick="finishWorkout()">⚡ FINISH WORKOUT</button></div>
   <div class="bottom-nav">
     <div class="nav-item" onclick="goToDash()"><div class="nav-icon">🏠</div><div class="nav-lbl">Home</div></div>
@@ -974,7 +977,7 @@ const GUIDE_DATA = {
   "Chest": { icon:"💪", phases:[
     {title:"Phase 1",note:"Females/Small Males: Start 10 lbs → up by 5. Once at 40 lbs → up by 10. Males: Start 20 lbs → up by 10.",exercises:[{name:"Incline Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Incline Dumbbell Bench (2nd exposure)",target:"Second round at same weight",sets:3},{name:"Flat Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Decline Fly",target:"5×20",sets:5}]},
     {title:"Phase 2",exercises:[{name:"Incline Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Incline Dumbbell Bench (2nd exposure)",target:"Volume work",sets:3},{name:"Flat Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Volume Work",target:"5×20 push through plateau",sets:5}]},
-    {title:"Phase 3",note:"Barbell Rotation: Incline 3→2→1 sessions, Flat 3→2→1 sessions. Add decline flys or sit-ups on lighter weeks.",exercises:[{name:"Incline Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Flat Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Barbell Bench (Incline or Flat)",target:"3rd movement — progressive overload",sets:3}]},
+    {title:"Phase 3",note:"Barbell Rotation: Incline 3→2→1 sessions, Flat 3→2→1 sessions. Add decline flys or sit-ups on lighter weeks.",exercises:[{name:"Incline Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Flat Dumbbell Bench",target:"Progressive overload",sets:3},{name:"Barbell Bench (Incline or Flat)",target:"3rd movement — progressive overload",sets:3},{name:"Decline Fly",target:"5×20",sets:5},{name:"Calisthenics",target:"Core finisher — see calisthenics plan",sets:3}]},
     {title:"Phase 4",exercises:[{name:"Flat Barbell Bench",target:"Progressive overload",sets:3},{name:"Incline Barbell Bench",target:"Progressive overload",sets:3},{name:"Incline Dumbbell Bench",target:"Accessory",sets:3},{name:"Decline Fly",target:"5×20",sets:5}]},
     {title:"Phase 5",exercises:[{name:"Incline Barbell Bench",target:"Progressive overload",sets:3},{name:"Flat Barbell Bench",target:"Progressive overload",sets:3},{name:"Flat Dumbbell Press",target:"Accessory",sets:3},{name:"Decline Fly",target:"5×20",sets:5}]},
     {title:"Phase 6",exercises:[{name:"Flat Barbell Bench",target:"Progressive overload",sets:3},{name:"Incline Barbell Bench",target:"Progressive overload",sets:3},{name:"Decline Cable Press",target:"3 sets",sets:3},{name:"Hinged-Over Dips",target:"3 sets",sets:3},{name:"Dragon Flags",target:"3 sets",sets:3},{name:"Push-Ups",target:"3 sets hollow-body → parallette",sets:3}]}
@@ -994,7 +997,7 @@ const GUIDE_DATA = {
     {title:"Phase 3",exercises:[{name:"Barbell Shoulder Press",target:"Progressive overload",sets:3},{name:"Seated Dumbbell Press",target:"Progressive overload",sets:3},{name:"Lateral Raise",target:"10 lbs — 5×10",sets:5},{name:"Bent-Over Rear Delt Row",target:"Progressive overload",sets:3}]},
     {title:"Phase 4",exercises:[{name:"Barbell Overhead Press",target:"Progressive overload",sets:3},{name:"Seated Barbell Overhead Press",target:"Progressive overload",sets:3},{name:"One-Arm High ROM Lateral Raise",target:"5×20",sets:5},{name:"Bent-Over Rear Delt Fly w/ Twist",target:"5×20",sets:5}]},
     {title:"Phase 5",exercises:[{name:"Barbell Overhead Press",target:"Progressive overload",sets:3},{name:"Seated Overhead Press",target:"Progressive overload",sets:3},{name:"Rope Pull",target:"5×10",sets:5},{name:"Arm-Bent Lateral Raise w/ Twist",target:"3×10",sets:3},{name:"Face Pull",target:"3×20",sets:3}]},
-    {title:"Phase 6",exercises:[{name:"Barbell Overhead Press",target:"Progressive overload",sets:3},{name:"Seated Arnold Press",target:"Progressive overload",sets:3},{name:"Behind-the-Back Barbell Shrugs",target:"3×20",sets:3},{name:"Around-the-World Front Raise",target:"3×10",sets:3},{name:"Pronated Lateral Delt Row",target:"3×10",sets:3},{name:"Rear Delt High Row",target:"3×10",sets:3}]}
+    {title:"Phase 6",exercises:[{name:"Barbell Overhead Press",target:"Progressive overload",sets:3},{name:"Seated Arnold Press",target:"Progressive overload",sets:3},{name:"Behind-the-Back Barbell Shrugs",target:"3×20",sets:3},{name:"Around-the-World Front Raise",target:"3×10",sets:3},{name:"Pronated Lateral Delt Row",target:"3×10",sets:3},{name:"Yoga Twist Raise",target:"3×10",sets:3},{name:"Rear Delt High Row",target:"3×10",sets:3},{name:"Underhand Rear Delt Fly",target:"3×10",sets:3}]}
   ]},
   "Arms": { icon:"💪", phases:[
     {title:"Phase 1",groups:[{group:"BICEPS",exercises:[{name:"Side Curl",target:"Progressive overload — one arm at a time, up to 30 lbs",sets:3},{name:"Standing Hinged Preacher Curl (Inside Grip)",target:"3×20",sets:3},{name:"Standing Hinged Preacher Curl (Outside Grip)",target:"3×20",sets:3}]},{group:"TRICEPS",exercises:[{name:"Dumbbell Tricep Kickbacks",target:"Progressive overload",sets:3},{name:"Long Rope Tricep Extension",target:"5×20",sets:5}]}]},
@@ -1811,6 +1814,57 @@ function copyLastSet(exId){
   t.weight=last.weight;t.reps=last.reps;refreshExCard(exId);updateTotals();_saveWkProgress();
 }
 function toggleEx(id){} // no-op — cards always expanded
+
+function openAddExerciseModal(){
+  const SUGGESTIONS=['Calisthenics','Push-Ups','Pull-Ups','Dips','Plank','Dragon Flags','Hanging Knee Raises','Mountain Climbers','Box Jumps','Jump Rope','Stretching','Ab Wheel','Face Pull','Band Pull-Apart','Foam Roll'];
+  let html='<div id="addExModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:flex-end;justify-content:center;">'
+    +'<div style="background:#181818;border:1px solid #333;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;">'
+    +'<div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:3px;margin-bottom:16px;">ADD EXERCISE</div>'
+    +'<input id="addExName" placeholder="Exercise name" autocomplete="off" style="width:100%;background:#111;border:1px solid #333;border-radius:10px;padding:12px 14px;color:#fff;font-size:15px;margin-bottom:10px;">'
+    +'<input id="addExTarget" placeholder="Target / description (optional)" autocomplete="off" style="width:100%;background:#111;border:1px solid #333;border-radius:10px;padding:12px 14px;color:#fff;font-size:14px;margin-bottom:12px;">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">'
+    +'<span style="font-size:12px;color:#666;font-family:Space Mono,monospace;white-space:nowrap;">Sets:</span>'
+    +'<div style="display:flex;gap:6px;">'
+    +[1,2,3,4,5].map(n=>'<button onclick="document.querySelectorAll(\'.addExSetsBtn\').forEach(b=>b.style.background=\'none\');this.style.background=\'rgba(255,92,0,0.2)\';window._addExSets='+n+'" class="addExSetsBtn" style="background:'+(n===3?'rgba(255,92,0,0.2)':'none')+';border:1px solid #333;border-radius:8px;padding:6px 12px;color:#fff;font-size:13px;cursor:pointer;">'+n+'</button>').join('')
+    +'</div></div>'
+    +'<div style="margin-bottom:14px;"><div style="font-size:10px;color:#555;font-family:Space Mono,monospace;letter-spacing:1px;margin-bottom:8px;">QUICK ADD</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;">'
+    +SUGGESTIONS.map(s=>'<button onclick="document.getElementById(\'addExName\').value=\''+s+'\'" style="background:#1e1e1e;border:1px solid #2a2a2a;border-radius:8px;padding:5px 10px;color:#aaa;font-size:12px;cursor:pointer;">'+s+'</button>').join('')
+    +'</div></div>'
+    +'<div style="display:flex;gap:8px;">'
+    +'<button onclick="document.getElementById(\'addExModal\').remove()" style="flex:1;background:#222;border:none;border-radius:10px;padding:14px;color:#aaa;font-family:Bebas Neue,sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;">CANCEL</button>'
+    +'<button onclick="confirmAddExercise()" style="flex:2;background:var(--orange);border:none;border-radius:10px;padding:14px;color:#fff;font-family:Bebas Neue,sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;">ADD</button>'
+    +'</div></div></div>';
+  window._addExSets=3;
+  document.body.insertAdjacentHTML('beforeend',html);
+  setTimeout(()=>document.getElementById('addExName').focus(),100);
+}
+
+function confirmAddExercise(){
+  const name=(document.getElementById('addExName').value||'').trim();
+  if(!name){document.getElementById('addExName').style.borderColor='#ff5555';return;}
+  const target=(document.getElementById('addExTarget').value||'').trim();
+  const sets=window._addExSets||3;
+  const exId='ex_custom_'+Date.now();
+  const ex={id:exId,name,target:target||'—',sets,group:null,isCustomAdded:true};
+  exercises.push(ex);
+  setsData[exId]=Array.from({length:sets},()=>({reps:'',weight:'',checked:false}));
+  // Append card to workout content
+  const c=document.getElementById('workoutContent');
+  const card=document.createElement('div');card.className='ex-card';card.id='card-'+exId;
+  const head=document.createElement('div');head.className='ex-head';
+  head.innerHTML=`<div class="ex-num" id="num-${exId}">${exercises.length}</div><div class="ex-text"><div class="ex-name">${esc(name)}</div><div class="ex-target">${esc(target||'Custom')}</div><div class="ex-vol" id="vol-${exId}"></div></div>`;
+  const body=document.createElement('div');body.className='ex-body';body.id='body-'+exId;
+  const sd=document.createElement('div');sd.id='sets-'+exId;body.appendChild(sd);
+  const btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:8px;margin-top:4px;';
+  const ab=document.createElement('button');ab.className='add-set-btn';ab.style.cssText='flex:1;margin:0;';ab.textContent='+ Add Set';ab.addEventListener('click',()=>addSet(exId));
+  const cb=document.createElement('button');cb.className='add-set-btn';cb.style.cssText='flex:1;margin:0;border-color:rgba(92,232,168,0.25);color:rgba(92,232,168,0.7);background:rgba(92,232,168,0.05);';cb.textContent='↑ Copy Last';cb.addEventListener('click',()=>copyLastSet(exId));
+  btnRow.appendChild(ab);btnRow.appendChild(cb);body.appendChild(btnRow);
+  card.appendChild(head);card.appendChild(body);c.appendChild(card);
+  renderSets(exId);updateTotals();_saveWkProgress();
+  document.getElementById('addExModal').remove();
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+}
 function addSet(exId){setsData[exId].push({reps:'',weight:'',checked:false});refreshExCard(exId);updateTotals();_saveWkProgress();}
 function deleteSet(exId,idx){if(setsData[exId].length<=1)return;setsData[exId].splice(idx,1);refreshExCard(exId);updateTotals();_saveWkProgress();}
 
