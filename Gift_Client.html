@@ -1330,7 +1330,15 @@ function handleLogin(){
     return m;
   }
   function resetBtn(){btn.textContent='ENTER MY PORTAL →';btn.disabled=false;}
-  function loginWith(m){currentMember=m;populateDash(m);show('dashScreen');setTimeout(()=>{const f=document.getElementById('mpFill');if(f)f.style.width='0%';const p=document.getElementById('mpPct');if(p)p.textContent='0%';},400);}
+  function loginWith(m){
+    currentMember=m;populateDash(m);show('dashScreen');
+    setTimeout(()=>{const f=document.getElementById('mpFill');if(f)f.style.width='0%';const p=document.getElementById('mpPct');if(p)p.textContent='0%';},400);
+    // Write lastSeen so trainer can see client is active
+    if(clientDb&&m._fbId){
+      clientDb.ref('members/'+m._fbId+'/lastSeen').set(Date.now()).catch(()=>{});
+      clientDb.ref('members/'+m._fbId+'/activeWorkout').remove().catch(()=>{});
+    }
+  }
 
   if(typeof clientDb!=='undefined'&&clientDb){
     clientDb.ref('members').once('value').then(snap=>{
@@ -1399,6 +1407,9 @@ function handleLogin(){
   }
 }
 function logout(){
+  if(clientDb&&currentMember&&currentMember._fbId){
+    clientDb.ref('members/'+currentMember._fbId+'/activeWorkout').remove().catch(()=>{});
+  }
   currentMember=null;
   if(window._syncPollInterval){clearInterval(window._syncPollInterval);window._syncPollInterval=null;}
   if(clientDb) try{clientDb.ref().off();}catch(e){}
@@ -1473,6 +1484,14 @@ function goToWorkout(){
     initWorkout(currentMember.day,`Phase ${currentMember.phase}`);
   }
   show('workoutScreen');
+  // Tell trainer a workout started
+  if(clientDb&&currentMember._fbId){
+    clientDb.ref('members/'+currentMember._fbId+'/activeWorkout').set({
+      day:currentMember.day||'',
+      phase:currentMember.phase||1,
+      startedAt:Date.now()
+    }).catch(()=>{});
+  }
 }
 function initCustomWorkout(planName,day,phaseNum){
   const plan=CUSTOM_PLANS[planName]; if(!plan) return;
@@ -1950,9 +1969,24 @@ function _playBeep(){
 
 // ── WORKOUT PROGRESS SAVE/RESTORE ─────────────
 let _wkKey=null;
+let _fbWorkoutSyncTimer=null;
 function _saveWkProgress(){
   if(!_wkKey||!Object.keys(setsData).length) return;
   try{ localStorage.setItem(_wkKey,JSON.stringify(setsData)); }catch(e){}
+  // Debounce Firebase sync so we don't write on every keystroke
+  if(_fbWorkoutSyncTimer) clearTimeout(_fbWorkoutSyncTimer);
+  _fbWorkoutSyncTimer=setTimeout(()=>{
+    if(clientDb&&currentMember&&currentMember._fbId){
+      const checkedSets=Object.values(setsData).reduce((n,arr)=>n+arr.filter(s=>s.checked).length,0);
+      const totalS=Object.values(setsData).reduce((n,arr)=>n+arr.length,0);
+      clientDb.ref('members/'+currentMember._fbId+'/activeWorkout/progress').set({
+        setsLogged:checkedSets,
+        totalSets:totalS,
+        vol:Math.round(totalVol()),
+        updatedAt:Date.now()
+      }).catch(()=>{});
+    }
+  },5000);
 }
 function _loadWkProgress(key){ try{const d=localStorage.getItem(key);return d?JSON.parse(d):null;}catch(e){return null;} }
 function _clearWkProgress(){ if(_wkKey) try{localStorage.removeItem(_wkKey);}catch(e){} }
@@ -2070,6 +2104,9 @@ function saveAndReturn(){
     }
   }
   _clearWkProgress();
+  if(clientDb&&currentMember&&currentMember._fbId){
+    clientDb.ref('members/'+currentMember._fbId+'/activeWorkout').remove().catch(()=>{});
+  }
   document.getElementById('resultModal').classList.remove('open');show('dashScreen');
 }
 
