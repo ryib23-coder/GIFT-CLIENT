@@ -1976,16 +1976,26 @@ function _saveWkProgress(){
   // Debounce Firebase sync so we don't write on every keystroke
   if(_fbWorkoutSyncTimer) clearTimeout(_fbWorkoutSyncTimer);
   _fbWorkoutSyncTimer=setTimeout(()=>{
-    if(clientDb&&currentMember&&currentMember._fbId){
-      const checkedSets=Object.values(setsData).reduce((n,arr)=>n+arr.filter(s=>s.checked).length,0);
-      const totalS=Object.values(setsData).reduce((n,arr)=>n+arr.length,0);
-      clientDb.ref('members/'+currentMember._fbId+'/activeWorkout/progress').set({
+    if(!clientDb||!currentMember||!currentMember._fbId) return;
+    const checkedSets=Object.values(setsData).reduce((n,arr)=>n+arr.filter(s=>s.checked).length,0);
+    const totalS=Object.values(setsData).reduce((n,arr)=>n+arr.length,0);
+    // Write full exercise log so trainer can see exactly what was logged
+    const exLog=exercises.map(ex=>({
+      name:ex.name,
+      target:ex.target||'',
+      sets:(setsData[ex.id]||[])
+        .filter(s=>s.reps!==''||s.weight!==''||s.checked)
+        .map(s=>({w:s.weight!==''?s.weight:'—',r:s.reps!==''?s.reps:'—',done:s.checked?1:0}))
+    }));
+    clientDb.ref('members/'+currentMember._fbId+'/activeWorkout').update({
+      exLog:exLog,
+      progress:{
         setsLogged:checkedSets,
         totalSets:totalS,
         vol:Math.round(totalVol()),
         updatedAt:Date.now()
-      }).catch(()=>{});
-    }
+      }
+    }).catch(()=>{});
   },5000);
 }
 function _loadWkProgress(key){ try{const d=localStorage.getItem(key);return d?JSON.parse(d):null;}catch(e){return null;} }
@@ -2097,9 +2107,17 @@ function saveAndReturn(){
     // Notify trainer via Firebase
     if(currentMember?._fbId&&typeof clientDb!=='undefined'&&clientDb){
       const dateStr=new Date().toISOString().slice(0,10);
+      const exLog=exercises.map(ex=>({
+        name:ex.name,
+        target:ex.target||'',
+        sets:(setsData[ex.id]||[])
+          .filter(s=>s.reps!==''||s.weight!==''||s.checked)
+          .map(s=>({w:s.weight!==''?s.weight:'—',r:s.reps!==''?s.reps:'—',done:s.checked?1:0}))
+      }));
       clientDb.ref('members/'+currentMember._fbId+'/completions/'+dateStr).set({
         day:currentMember.day, phase:currentMember.phase||1,
-        vol:vol, sets:totalSets(), reps:totalReps(), ts:Date.now()
+        vol:vol, sets:totalSets(), reps:totalReps(), ts:Date.now(),
+        exLog:exLog
       }).catch(()=>{});
     }
   }
